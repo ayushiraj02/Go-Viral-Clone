@@ -1,0 +1,8 @@
+Date: 2026-05-06
+Context: Initial project setup for Go Viral Clone challenge.
+Decisions:
+- Stack: FastAPI backend + static HTML/CSS/JS frontend.
+- No paid APIs. Use heuristic scoring and explainable outputs.
+- Include trending audio/hashtags, competitor comparison, and actionable suggestions.
+Action:
+- Remember to save full AI chat exports into ai-logs/ during development.

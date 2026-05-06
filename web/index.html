@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Go Viral AI Analyzer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="bg-orb orb-1"></div>
+  <div class="bg-orb orb-2"></div>
+  <div class="bg-grid"></div>
+
+  <main class="app">
+    <header class="hero">
+      <div class="hero-text">
+        <p class="eyebrow">AI Content Virality Analyzer</p>
+        <h1>Go Viral Clone</h1>
+        <p class="lead">
+          Upload a video or image, add your caption, and get a clear virality score
+          with actionable fixes that improve hooks, pacing, and reach.
+        </p>
+      </div>
+      <div class="hero-card">
+        <div class="stat">
+          <span class="stat-label">Model</span>
+          <span class="stat-value">Heuristic v1</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Focus</span>
+          <span class="stat-value">Actionable edits</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Output</span>
+          <span class="stat-value">Score + breakdown</span>
+        </div>
+      </div>
+    </header>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Analyze Your Content</h2>
+        <p>Works with short videos, thumbnails, or static posts.</p>
+      </div>
+      <form id="analyzeForm" class="panel-body">
+        <div class="upload" id="uploadArea">
+          <input type="file" id="media" name="media" accept="image/*,video/*" />
+          <label for="media">
+            <span class="upload-title">Drop media here or click to upload</span>
+            <span class="upload-subtitle">MP4, MOV, JPG, PNG up to 50MB</span>
+          </label>
+          <div id="preview" class="preview"></div>
+        </div>
+
+        <div class="field-row">
+          <div class="field">
+            <label for="platform">Platform</label>
+            <select id="platform" name="platform">
+              <option value="tiktok">TikTok</option>
+              <option value="instagram">Instagram Reels</option>
+              <option value="youtube">YouTube Shorts</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="goal">Goal</label>
+            <select id="goal" name="goal">
+              <option value="reach">Maximize reach</option>
+              <option value="engagement">Boost engagement</option>
+              <option value="conversions">Drive conversions</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="caption">Caption</label>
+          <textarea id="caption" name="caption" rows="4" placeholder="Paste your caption or post text"></textarea>
+          <p class="helper">Tip: 80 to 150 characters with 2 to 5 hashtags performs best.</p>
+        </div>
+
+        <div class="actions">
+          <button type="submit" id="analyzeBtn">Analyze virality</button>
+          <button type="button" id="resetBtn" class="ghost">Reset</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="results" class="results hidden">
+      <div class="score-card">
+        <div class="score-meta">
+          <h3>Virality score</h3>
+          <p id="summary">Upload content to see the full analysis.</p>
+        </div>
+        <div class="score-ring">
+          <div class="score-value">
+            <span id="score">0</span>
+            <small>/ 100</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h4>Breakdown</h4>
+          <div class="metric">
+            <span>Hook strength</span>
+            <span id="hookScore">0</span>
+            <div class="bar"><div id="hookBar" class="bar-fill"></div></div>
+          </div>
+          <div class="metric">
+            <span>Pacing</span>
+            <span id="pacingScore">0</span>
+            <div class="bar"><div id="pacingBar" class="bar-fill"></div></div>
+          </div>
+          <div class="metric">
+            <span>Thumbnail clarity</span>
+            <span id="thumbnailScore">0</span>
+            <div class="bar"><div id="thumbnailBar" class="bar-fill"></div></div>
+          </div>
+          <div class="metric">
+            <span>Caption quality</span>
+            <span id="captionScore">0</span>
+            <div class="bar"><div id="captionBar" class="bar-fill"></div></div>
+          </div>
+          <div class="metric">
+            <span>Trend alignment</span>
+            <span id="trendScore">0</span>
+            <div class="bar"><div id="trendBar" class="bar-fill"></div></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h4>Actionable fixes</h4>
+          <ul id="suggestions" class="list"></ul>
+        </div>
+
+        <div class="card">
+          <h4>Competitor comparison</h4>
+          <div class="comparison">
+            <div class="comparison-row">
+              <span>Your score</span>
+              <div class="bar"><div id="yourScoreBar" class="bar-fill"></div></div>
+              <span id="yourScoreLabel">0</span>
+            </div>
+            <div class="comparison-row">
+              <span>Benchmark</span>
+              <div class="bar"><div id="benchmarkBar" class="bar-fill"></div></div>
+              <span id="benchmarkLabel">0</span>
+            </div>
+            <p id="percentile" class="helper"></p>
+          </div>
+        </div>
+
+        <div class="card">
+          <h4>Trending recommendations</h4>
+          <div class="trend-block">
+            <p class="trend-title">Audio</p>
+            <div id="trendingAudio" class="chips"></div>
+          </div>
+          <div class="trend-block">
+            <p class="trend-title">Hashtags</p>
+            <div id="trendingHashtags" class="chips"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p>Built for the 8x Social Go Viral Clone challenge.</p>
+      <p>Scoring uses a transparent heuristic model with explainable outputs.</p>
+    </footer>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="/static/script.js"></script>
+</body>
+</html>
