@@ -6,7 +6,9 @@ const toast = document.getElementById("toast");
 const resetBtn = document.getElementById("resetBtn");
 const uploadArea = document.getElementById("uploadArea");
 const exportBtn = document.getElementById("exportBtn");
+const exportFullBtn = document.getElementById("exportFullBtn");
 const scoreCard = document.querySelector(".score-card");
+const resultsSection = document.getElementById("results");
 
 const scoreEl = document.getElementById("score");
 const summaryEl = document.getElementById("summary");
@@ -48,6 +50,22 @@ async function exportScoreCard() {
   });
   const link = document.createElement("a");
   link.download = "go-viral-scorecard.png";
+  link.href = canvas.toDataURL("image/png");
+  link.click();
+}
+
+async function exportFullReport() {
+  if (!resultsSection || typeof html2canvas === "undefined") {
+    showToast("Export not available");
+    return;
+  }
+
+  const canvas = await html2canvas(resultsSection, {
+    backgroundColor: "#0f1115",
+    scale: 2,
+  });
+  const link = document.createElement("a");
+  link.download = "go-viral-full-report.png";
   link.href = canvas.toDataURL("image/png");
   link.click();
 }
@@ -405,6 +423,16 @@ if (exportBtn) {
       return;
     }
     exportScoreCard();
+  });
+}
+
+if (exportFullBtn) {
+  exportFullBtn.addEventListener("click", () => {
+    if (results.classList.contains("hidden")) {
+      showToast("Run an analysis first");
+      return;
+    }
+    exportFullReport();
   });
 }
 

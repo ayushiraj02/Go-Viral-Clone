@@ -268,6 +268,12 @@ button.ghost {
   gap: 10px;
 }
 
+.export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .export-btn {
   width: fit-content;
 }
