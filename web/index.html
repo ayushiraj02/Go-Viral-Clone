@@ -92,6 +92,7 @@
         <div class="score-meta">
           <h3>Virality score</h3>
           <p id="summary">Upload content to see the full analysis.</p>
+          <button type="button" id="exportBtn" class="ghost export-btn">Download score card</button>
         </div>
         <div class="score-ring">
           <div class="score-value">
@@ -137,6 +138,11 @@
         </div>
 
         <div class="card">
+          <h4>Caption rewrites</h4>
+          <ul id="rewrites" class="list"></ul>
+        </div>
+
+        <div class="card">
           <h4>Competitor comparison</h4>
           <div class="comparison">
             <div class="comparison-row">
@@ -174,6 +180,7 @@
   </main>
 
   <div id="toast" class="toast hidden"></div>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="/static/script.js"></script>
 </body>
 </html>

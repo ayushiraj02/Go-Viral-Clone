@@ -263,6 +263,15 @@ button.ghost {
   margin-bottom: 28px;
 }
 
+.score-meta {
+  display: grid;
+  gap: 10px;
+}
+
+.export-btn {
+  width: fit-content;
+}
+
 .score-ring {
   width: 120px;
   height: 120px;

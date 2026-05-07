@@ -83,6 +83,7 @@ class AnalysisResponse(BaseModel):
     summary: str
     breakdown: Breakdown
     suggestions: List[str]
+    rewrites: List[str]
     comparison: Comparison
     trending: Trending
 
@@ -109,34 +110,53 @@ def score_caption(length: int, hashtags: int, intent_score: int) -> int:
     return clamp((length_score * 0.55) + (hash_score * 0.25) + (intent_score * 0.2))
 
 
-def score_hook(caption: str, file_size_mb: Optional[float]) -> int:
+def score_hook(
+    caption: str,
+    file_size_mb: Optional[float],
+    hook_visual: Optional[int],
+) -> int:
     text = caption.lower()
     hit = any(word in text for word in HOOK_WORDS)
     hook_base = 72 if hit else 52
     size_penalty = 0
     if file_size_mb is not None:
         size_penalty = max(0, (file_size_mb - 8) * 2)
-    return clamp(hook_base - size_penalty)
+    base_score = clamp(hook_base - size_penalty)
+    if hook_visual is None:
+        return base_score
+    return clamp((base_score * 0.6) + (hook_visual * 0.4))
 
 
 def score_pacing(
     file_size_mb: Optional[float],
     duration_seconds: Optional[float],
     platform: str,
+    pace_visual: Optional[int],
 ) -> int:
     if duration_seconds is None:
         if file_size_mb is None:
             return 55
         target = 7 if platform == "tiktok" else 9
         diff = abs(file_size_mb - target)
-        return clamp(90 - diff * 6)
+        base = clamp(90 - diff * 6)
+        if pace_visual is None:
+            return base
+        return clamp((base * 0.6) + (pace_visual * 0.4))
 
     target_seconds = 18 if platform == "tiktok" else 24
     diff = abs(duration_seconds - target_seconds)
-    return clamp(92 - diff * 2.2)
+    base = clamp(92 - diff * 2.2)
+    if pace_visual is None:
+        return base
+    return clamp((base * 0.6) + (pace_visual * 0.4))
 
 
-def score_thumbnail(image_size: Optional[tuple[int, int]], platform: str) -> int:
+def score_thumbnail(
+    image_size: Optional[tuple[int, int]],
+    platform: str,
+    brightness: Optional[int],
+    contrast: Optional[int],
+) -> int:
     if image_size is None:
         return 58
 
@@ -148,7 +168,11 @@ def score_thumbnail(image_size: Optional[tuple[int, int]], platform: str) -> int
     target_ratio = 9 / 16 if platform in {"tiktok", "instagram"} else 9 / 16
     ratio_score = 100 - abs(ratio - target_ratio) * 220
     pixel_score = 100 - max(0, 720 - min(width, height)) * 0.05
-    return clamp((ratio_score * 0.6) + (pixel_score * 0.4))
+    base_score = clamp((ratio_score * 0.6) + (pixel_score * 0.4))
+    if brightness is None or contrast is None:
+        return base_score
+    visual_score = clamp((brightness * 0.4) + (contrast * 0.6))
+    return clamp((base_score * 0.6) + (visual_score * 0.4))
 
 
 def score_trend(hashtags: int, caption: str, platform: str) -> int:
@@ -206,6 +230,10 @@ def build_suggestions(
     platform: str,
     language: str,
     intent_score: int,
+    hook_visual: Optional[int],
+    pace_visual: Optional[int],
+    brightness: Optional[int],
+    contrast: Optional[int],
 ) -> List[str]:
     suggestions: List[str] = []
     platform_label = PLATFORM_LABELS.get(platform, platform.title())
@@ -214,12 +242,24 @@ def build_suggestions(
         suggestions.append(
             "Open with a sharper first line like a bold claim or a surprise result.")
         suggestions.extend(hook_examples(platform, language))
+        if hook_visual is not None and hook_visual < 55:
+            suggestions.append(
+                "Increase motion or visual change in the first 3 seconds to keep attention.")
     if breakdown.pacing < 65:
         suggestions.append(
             "Tighten pacing with quicker cuts in the first 5 seconds.")
+        if pace_visual is not None and pace_visual < 55:
+            suggestions.append(
+                "Add jump cuts or on-screen text changes every 2 to 3 seconds.")
     if breakdown.thumbnail < 65:
         suggestions.append(
             "Use a high-contrast thumbnail with one focal subject.")
+        if brightness is not None and brightness < 40:
+            suggestions.append(
+                "Boost lighting so the subject stands out from the background.")
+        if contrast is not None and contrast < 40:
+            suggestions.append(
+                "Increase contrast to make the thumbnail readable on mobile.")
     if breakdown.caption < 70:
         if caption_length < 80:
             suggestions.append(
@@ -245,6 +285,47 @@ def build_suggestions(
             "Strong fundamentals. Test two caption variations to push engagement.")
 
     return suggestions
+
+
+def extract_hashtags(caption: str, limit: int = 3) -> List[str]:
+    tags: List[str] = []
+    for token in caption.split():
+        if token.startswith("#") and len(tags) < limit:
+            tags.append(token)
+    return tags
+
+
+def generate_rewrites(
+    caption: str,
+    platform: str,
+    goal: str,
+    language: str,
+    hashtags: int,
+) -> List[str]:
+    platform_label = PLATFORM_LABELS.get(platform, platform.title())
+    base_tags = extract_hashtags(caption)
+    tag_suffix = f" {' '.join(base_tags)}" if base_tags else ""
+    goal_line = {
+        "reach": "Share this with a friend who needs it.",
+        "engagement": "Comment your biggest struggle below.",
+        "conversions": "Try this today and report back.",
+    }.get(goal, "Save this for later.")
+
+    if not caption.strip():
+        caption = "Here is the idea in one line"
+
+    templates = [
+        f"Hook: {caption.strip()} {goal_line}{tag_suffix}",
+        f"{platform_label} tip: {caption.strip()}\n{goal_line}{tag_suffix}",
+        f"Before/After: {caption.strip()}\nSave this for later.{tag_suffix}",
+    ]
+
+    if language != "en":
+        templates.append(
+            f"Local + English: {caption.strip()} | Quick tip in English here.{tag_suffix}"
+        )
+
+    return templates[:3]
 
 
 def analysis_summary(score: int) -> str:
@@ -274,7 +355,11 @@ async def analyze(
     goal: str = Form("reach"),
     image_width: Optional[int] = Form(None),
     image_height: Optional[int] = Form(None),
+    brightness: Optional[int] = Form(None),
+    contrast: Optional[int] = Form(None),
     duration_seconds: Optional[float] = Form(None),
+    hook_visual: Optional[int] = Form(None),
+    pace_visual: Optional[int] = Form(None),
     media: Optional[UploadFile] = File(None),
 ) -> AnalysisResponse:
     media_bytes: Optional[bytes] = None
@@ -293,9 +378,10 @@ async def analyze(
     intent_score = detect_intent(caption)
 
     breakdown = Breakdown(
-        hook=score_hook(caption, file_size_mb),
-        pacing=score_pacing(file_size_mb, duration_seconds, platform),
-        thumbnail=score_thumbnail(image_size, platform),
+        hook=score_hook(caption, file_size_mb, hook_visual),
+        pacing=score_pacing(file_size_mb, duration_seconds,
+                            platform, pace_visual),
+        thumbnail=score_thumbnail(image_size, platform, brightness, contrast),
         caption=score_caption(caption_length, hashtags, intent_score),
         trend=score_trend(hashtags, caption, platform),
     )
@@ -329,7 +415,19 @@ async def analyze(
         summary=analysis_summary(score),
         breakdown=breakdown,
         suggestions=build_suggestions(
-            breakdown, caption_length, hashtags, platform, language, intent_score),
+            breakdown,
+            caption_length,
+            hashtags,
+            platform,
+            language,
+            intent_score,
+            hook_visual,
+            pace_visual,
+            brightness,
+            contrast,
+        ),
+        rewrites=generate_rewrites(
+            caption, platform, goal, language, hashtags),
         comparison=Comparison(benchmark=benchmark,
                               delta=delta, percentile=percentile),
         trending=Trending(
