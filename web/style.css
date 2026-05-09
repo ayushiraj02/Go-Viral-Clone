@@ -327,6 +327,12 @@ button.ghost {
   font-size: 14px;
 }
 
+.reason {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .metric span:first-child {
   color: var(--muted);
 }

@@ -31,6 +31,12 @@ const benchmarkBar = document.getElementById("benchmarkBar");
 const yourScoreLabel = document.getElementById("yourScoreLabel");
 const benchmarkLabel = document.getElementById("benchmarkLabel");
 const percentileEl = document.getElementById("percentile");
+const hookReason = document.getElementById("hookReason");
+const pacingReason = document.getElementById("pacingReason");
+const thumbnailReason = document.getElementById("thumbnailReason");
+const captionReason = document.getElementById("captionReason");
+const trendReason = document.getElementById("trendReason");
+const hookPanel = document.getElementById("hookPanel");
 
 function showToast(message) {
   toast.textContent = message;
@@ -398,6 +404,13 @@ form.addEventListener("submit", async (event) => {
     setBar(thumbnailBar, data.breakdown.thumbnail);
     setBar(captionBar, data.breakdown.caption);
     setBar(trendBar, data.breakdown.trend);
+
+    hookReason.textContent = data.reasons.hook;
+    pacingReason.textContent = data.reasons.pacing;
+    thumbnailReason.textContent = data.reasons.thumbnail;
+    captionReason.textContent = data.reasons.caption;
+    trendReason.textContent = data.reasons.trend;
+    hookPanel.textContent = data.hook_panel;
 
     renderSuggestions(data.suggestions);
     renderRewrites(data.rewrites);

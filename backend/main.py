@@ -78,14 +78,41 @@ class Trending(BaseModel):
     hashtags: List[str]
 
 
+class Reasoning(BaseModel):
+    hook: str
+    pacing: str
+    thumbnail: str
+    caption: str
+    trend: str
+
+
+class Signals(BaseModel):
+    hook_visual: Optional[int]
+    pace_visual: Optional[int]
+    brightness: Optional[int]
+    contrast: Optional[int]
+    duration_seconds: Optional[float]
+
+
 class AnalysisResponse(BaseModel):
     score: int
     summary: str
     breakdown: Breakdown
     suggestions: List[str]
     rewrites: List[str]
+    reasons: Reasoning
+    hook_panel: str
+    signals: Signals
     comparison: Comparison
     trending: Trending
+
+
+BENCHMARK_RANGES = {
+    "tiktok": {"video": (64, 86), "image": (58, 80)},
+    "instagram": {"video": (62, 84), "image": (56, 78)},
+    "youtube": {"video": (63, 85), "image": (57, 79)},
+    "default": {"video": (60, 82), "image": (55, 77)},
+}
 
 
 def clamp(value: float, min_value: int = 0, max_value: int = 100) -> int:
@@ -338,6 +365,47 @@ def analysis_summary(score: int) -> str:
     return "Low potential today. Strengthen the hook and simplify the message."
 
 
+def build_reasons(
+    caption_length: int,
+    hashtags: int,
+    intent_score: int,
+    hook_visual: Optional[int],
+    pace_visual: Optional[int],
+    brightness: Optional[int],
+    contrast: Optional[int],
+    duration_seconds: Optional[float],
+    target_seconds: Optional[int],
+    trend_matches: int,
+) -> Reasoning:
+    hook_reason = "Hook score uses caption cues and early visual change."
+    if hook_visual is not None:
+        hook_reason = f"First 3s change score: {hook_visual}/100."
+
+    pacing_reason = "Pacing score uses duration and visual change."
+    if duration_seconds is not None and target_seconds is not None:
+        pacing_reason = f"Duration {duration_seconds:.1f}s vs target {target_seconds}s."
+        if pace_visual is not None:
+            pacing_reason += f" Visual pace score {pace_visual}/100."
+
+    thumbnail_reason = "Thumbnail score uses aspect ratio and resolution."
+    if brightness is not None and contrast is not None:
+        thumbnail_reason = f"Brightness {brightness}/100, contrast {contrast}/100."
+
+    caption_reason = (
+        f"Length {caption_length} chars, {hashtags} hashtags, intent {intent_score}/100."
+    )
+
+    trend_reason = f"Trending tag matches: {trend_matches}."
+
+    return Reasoning(
+        hook=hook_reason,
+        pacing=pacing_reason,
+        thumbnail=thumbnail_reason,
+        caption=caption_reason,
+        trend=trend_reason,
+    )
+
+
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
@@ -370,6 +438,13 @@ async def analyze(
         media_bytes = await media.read()
         file_size_mb = len(media_bytes) / (1024 * 1024)
 
+    media_type = "image"
+    if media is not None and media.content_type:
+        if media.content_type.startswith("video/"):
+            media_type = "video"
+        elif media.content_type.startswith("image/"):
+            media_type = "image"
+
     if image_width and image_height:
         image_size = (image_width, image_height)
 
@@ -377,6 +452,7 @@ async def analyze(
     language = detect_language(caption)
     intent_score = detect_intent(caption)
 
+    target_seconds = 18 if platform == "tiktok" else 24
     breakdown = Breakdown(
         hook=score_hook(caption, file_size_mb, hook_visual),
         pacing=score_pacing(file_size_mb, duration_seconds,
@@ -404,11 +480,21 @@ async def analyze(
     goal_bonus = 2 if goal == "engagement" else 0
     score = clamp(weighted_score + goal_bonus)
 
-    seed_input = f"{caption}-{media.filename if media else ''}-{file_size_mb}-{platform}"
+    seed_input = f"{caption}-{media.filename if media else ''}-{file_size_mb}-{platform}-{media_type}"
     rng = random.Random(hash_seed(seed_input))
-    benchmark = clamp(rng.randint(60, 82))
+    platform_ranges = BENCHMARK_RANGES.get(
+        platform, BENCHMARK_RANGES["default"])
+    bench_low, bench_high = platform_ranges.get(media_type, (60, 82))
+    benchmark = clamp(rng.randint(bench_low, bench_high))
     delta = score - benchmark
     percentile = clamp(50 + delta, 5, 95)
+    trend_matches = sum(
+        tag.lower() in caption.lower() for tag in TRENDING_TAGS.get(platform, [])
+    )
+
+    hook_panel = "First 3 seconds change score not available for images."
+    if hook_visual is not None:
+        hook_panel = f"First 3 seconds change score: {hook_visual}/100."
 
     response = AnalysisResponse(
         score=score,
@@ -428,6 +514,26 @@ async def analyze(
         ),
         rewrites=generate_rewrites(
             caption, platform, goal, language, hashtags),
+        reasons=build_reasons(
+            caption_length,
+            hashtags,
+            intent_score,
+            hook_visual,
+            pace_visual,
+            brightness,
+            contrast,
+            duration_seconds,
+            target_seconds if duration_seconds is not None else None,
+            trend_matches,
+        ),
+        hook_panel=hook_panel,
+        signals=Signals(
+            hook_visual=hook_visual,
+            pace_visual=pace_visual,
+            brightness=brightness,
+            contrast=contrast,
+            duration_seconds=duration_seconds,
+        ),
         comparison=Comparison(benchmark=benchmark,
                               delta=delta, percentile=percentile),
         trending=Trending(
