@@ -7,8 +7,10 @@ const resetBtn = document.getElementById("resetBtn");
 const uploadArea = document.getElementById("uploadArea");
 const exportBtn = document.getElementById("exportBtn");
 const exportFullBtn = document.getElementById("exportFullBtn");
+const sampleBtn = document.getElementById("sampleBtn");
 const scoreCard = document.querySelector(".score-card");
 const resultsSection = document.getElementById("results");
+const sampleBadge = document.getElementById("sampleBadge");
 
 const scoreEl = document.getElementById("score");
 const summaryEl = document.getElementById("summary");
@@ -43,6 +45,18 @@ function showToast(message) {
   toast.classList.remove("hidden");
   setTimeout(() => toast.classList.add("hidden"), 2400);
 }
+
+const sampleData = {
+  platform: "tiktok",
+  goal: "engagement",
+  caption:
+    "This one habit changed my workflow in 7 days. Try it and tell me if it works. #creator #productivity",
+  durationSeconds: 19.2,
+  hookVisual: 72,
+  paceVisual: 68,
+  brightness: 64,
+  contrast: 58,
+};
 
 async function exportScoreCard() {
   if (!scoreCard || typeof html2canvas === "undefined") {
@@ -122,6 +136,84 @@ function renderPreview(file) {
     video.src = url;
     video.controls = true;
     preview.appendChild(video);
+  }
+}
+
+function applySampleData() {
+  const captionField = document.getElementById("caption");
+  const platformField = document.getElementById("platform");
+  const goalField = document.getElementById("goal");
+
+  captionField.value = sampleData.caption;
+  platformField.value = sampleData.platform;
+  goalField.value = sampleData.goal;
+  mediaInput.value = "";
+  preview.innerHTML = "";
+  if (sampleBadge) {
+    sampleBadge.classList.remove("hidden");
+  }
+}
+
+async function runSampleAnalysis() {
+  applySampleData();
+  const formData = new FormData(form);
+  formData.append("duration_seconds", sampleData.durationSeconds);
+  formData.append("hook_visual", sampleData.hookVisual);
+  formData.append("pace_visual", sampleData.paceVisual);
+  formData.append("brightness", sampleData.brightness);
+  formData.append("contrast", sampleData.contrast);
+
+  try {
+    const response = await fetch("/api/analyze", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      showToast(error.detail || "Sample analysis failed");
+      return;
+    }
+
+    const data = await response.json();
+    results.classList.remove("hidden");
+
+    scoreEl.textContent = data.score;
+    summaryEl.textContent = data.summary;
+
+    hookScore.textContent = data.breakdown.hook;
+    pacingScore.textContent = data.breakdown.pacing;
+    thumbnailScore.textContent = data.breakdown.thumbnail;
+    captionScore.textContent = data.breakdown.caption;
+    trendScore.textContent = data.breakdown.trend;
+
+    setBar(hookBar, data.breakdown.hook);
+    setBar(pacingBar, data.breakdown.pacing);
+    setBar(thumbnailBar, data.breakdown.thumbnail);
+    setBar(captionBar, data.breakdown.caption);
+    setBar(trendBar, data.breakdown.trend);
+
+    hookReason.textContent = data.reasons.hook;
+    pacingReason.textContent = data.reasons.pacing;
+    thumbnailReason.textContent = data.reasons.thumbnail;
+    captionReason.textContent = data.reasons.caption;
+    trendReason.textContent = data.reasons.trend;
+    hookPanel.textContent = data.hook_panel;
+
+    renderSuggestions(data.suggestions);
+    renderRewrites(data.rewrites);
+    renderChips(trendingAudio, data.trending.audio);
+    renderChips(trendingHashtags, data.trending.hashtags);
+
+    yourScoreBar.style.width = `${data.score}%`;
+    benchmarkBar.style.width = `${data.comparison.benchmark}%`;
+    yourScoreLabel.textContent = data.score;
+    benchmarkLabel.textContent = data.comparison.benchmark;
+    percentileEl.textContent = `You rank in the top ${data.comparison.percentile}% of similar posts.`;
+
+    showToast("Sample analysis complete");
+  } catch (error) {
+    showToast("Network error. Is the backend running?");
   }
 }
 
@@ -449,8 +541,17 @@ if (exportFullBtn) {
   });
 }
 
+if (sampleBtn) {
+  sampleBtn.addEventListener("click", () => {
+    runSampleAnalysis();
+  });
+}
+
 resetBtn.addEventListener("click", () => {
   form.reset();
   preview.innerHTML = "";
   results.classList.add("hidden");
+  if (sampleBadge) {
+    sampleBadge.classList.add("hidden");
+  }
 });
