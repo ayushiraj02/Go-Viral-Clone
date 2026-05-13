@@ -94,6 +94,11 @@ class Signals(BaseModel):
     duration_seconds: Optional[float]
 
 
+class Confidence(BaseModel):
+    label: str
+    score: int
+
+
 class AnalysisResponse(BaseModel):
     score: int
     summary: str
@@ -103,6 +108,8 @@ class AnalysisResponse(BaseModel):
     reasons: Reasoning
     hook_panel: str
     signals: Signals
+    confidence: Confidence
+    takeaways: List[str]
     comparison: Comparison
     trending: Trending
 
@@ -406,6 +413,71 @@ def build_reasons(
     )
 
 
+def compute_confidence(
+    has_media: bool,
+    duration_seconds: Optional[float],
+    hook_visual: Optional[int],
+    pace_visual: Optional[int],
+    brightness: Optional[int],
+    contrast: Optional[int],
+) -> Confidence:
+    score = 40
+    if has_media:
+        score += 20
+    if duration_seconds is not None:
+        score += 15
+    if hook_visual is not None:
+        score += 10
+    if pace_visual is not None:
+        score += 10
+    if brightness is not None and contrast is not None:
+        score += 5
+
+    score = clamp(score)
+    if score >= 80:
+        label = "High"
+    elif score >= 60:
+        label = "Medium"
+    else:
+        label = "Low"
+
+    return Confidence(label=label, score=score)
+
+
+def build_takeaways(breakdown: Breakdown, platform: str) -> List[str]:
+    items = []
+    platform_label = PLATFORM_LABELS.get(platform, platform.title())
+    scores = {
+        "hook": breakdown.hook,
+        "pacing": breakdown.pacing,
+        "thumbnail": breakdown.thumbnail,
+        "caption": breakdown.caption,
+        "trend": breakdown.trend,
+    }
+    lowest = sorted(scores.items(), key=lambda item: item[1])[:3]
+    for metric, score in lowest:
+        if metric == "hook":
+            items.append(
+                "Fix the first 3 seconds with a stronger hook statement.")
+        elif metric == "pacing":
+            items.append(
+                "Speed up early pacing with quicker cuts or text beats.")
+        elif metric == "thumbnail":
+            items.append(
+                "Increase thumbnail clarity with brighter lighting and contrast.")
+        elif metric == "caption":
+            items.append(
+                "Tighten the caption and add a clear CTA to boost engagement.")
+        elif metric == "trend":
+            items.append(
+                f"Add a trending audio/hashtag combo for {platform_label}.")
+
+    if not items:
+        items.append(
+            "Strong baseline. A/B test hook and thumbnail to push reach.")
+    return items
+
+
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
@@ -534,6 +606,15 @@ async def analyze(
             contrast=contrast,
             duration_seconds=duration_seconds,
         ),
+        confidence=compute_confidence(
+            media is not None,
+            duration_seconds,
+            hook_visual,
+            pace_visual,
+            brightness,
+            contrast,
+        ),
+        takeaways=build_takeaways(breakdown, platform),
         comparison=Comparison(benchmark=benchmark,
                               delta=delta, percentile=percentile),
         trending=Trending(

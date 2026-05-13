@@ -39,6 +39,9 @@ const thumbnailReason = document.getElementById("thumbnailReason");
 const captionReason = document.getElementById("captionReason");
 const trendReason = document.getElementById("trendReason");
 const hookPanel = document.getElementById("hookPanel");
+const takeawaysEl = document.getElementById("takeaways");
+const confidenceLabel = document.getElementById("confidenceLabel");
+const confidenceFill = document.getElementById("confidenceFill");
 
 function showToast(message) {
   toast.textContent = message;
@@ -122,6 +125,26 @@ function renderRewrites(items) {
   });
 }
 
+function renderTakeaways(items) {
+  takeawaysEl.innerHTML = "";
+  items.forEach((item) => {
+    const li = document.createElement("li");
+    li.textContent = item;
+    takeawaysEl.appendChild(li);
+  });
+}
+
+function setBadgeState(element, value) {
+  element.classList.remove("good", "warn", "bad");
+  if (value >= 75) {
+    element.classList.add("good");
+  } else if (value >= 55) {
+    element.classList.add("warn");
+  } else {
+    element.classList.add("bad");
+  }
+}
+
 function renderPreview(file) {
   preview.innerHTML = "";
   if (!file) return;
@@ -187,6 +210,12 @@ async function runSampleAnalysis() {
     captionScore.textContent = data.breakdown.caption;
     trendScore.textContent = data.breakdown.trend;
 
+    setBadgeState(hookScore, data.breakdown.hook);
+    setBadgeState(pacingScore, data.breakdown.pacing);
+    setBadgeState(thumbnailScore, data.breakdown.thumbnail);
+    setBadgeState(captionScore, data.breakdown.caption);
+    setBadgeState(trendScore, data.breakdown.trend);
+
     setBar(hookBar, data.breakdown.hook);
     setBar(pacingBar, data.breakdown.pacing);
     setBar(thumbnailBar, data.breakdown.thumbnail);
@@ -200,6 +229,11 @@ async function runSampleAnalysis() {
     trendReason.textContent = data.reasons.trend;
     hookPanel.textContent = data.hook_panel;
 
+    confidenceLabel.textContent = `Confidence: ${data.confidence.label}`;
+    confidenceFill.style.width = `${data.confidence.score}%`;
+    setBadgeState(confidenceLabel, data.confidence.score);
+
+    renderTakeaways(data.takeaways);
     renderSuggestions(data.suggestions);
     renderRewrites(data.rewrites);
     renderChips(trendingAudio, data.trending.audio);

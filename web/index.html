@@ -94,6 +94,12 @@
         <div class="score-meta">
           <h3>Virality score</h3>
           <p id="summary">Upload content to see the full analysis.</p>
+          <div class="confidence">
+            <span class="badge" id="confidenceLabel">Confidence: -</span>
+            <div class="confidence-bar">
+              <div id="confidenceFill" class="confidence-fill"></div>
+            </div>
+          </div>
           <div class="export-actions">
             <button type="button" id="exportBtn" class="ghost export-btn">Download score card</button>
             <button type="button" id="exportFullBtn" class="ghost export-btn">Download full report</button>
@@ -109,34 +115,39 @@
 
       <div class="grid">
         <div class="card">
+          <h4>Top takeaways</h4>
+          <ul id="takeaways" class="list"></ul>
+        </div>
+
+        <div class="card">
           <h4>Breakdown</h4>
           <div class="metric">
             <span>Hook strength</span>
-            <span id="hookScore">0</span>
+            <span id="hookScore" class="metric-score">0</span>
             <div class="bar"><div id="hookBar" class="bar-fill"></div></div>
             <p id="hookReason" class="reason"></p>
           </div>
           <div class="metric">
             <span>Pacing</span>
-            <span id="pacingScore">0</span>
+            <span id="pacingScore" class="metric-score">0</span>
             <div class="bar"><div id="pacingBar" class="bar-fill"></div></div>
             <p id="pacingReason" class="reason"></p>
           </div>
           <div class="metric">
             <span>Thumbnail clarity</span>
-            <span id="thumbnailScore">0</span>
+            <span id="thumbnailScore" class="metric-score">0</span>
             <div class="bar"><div id="thumbnailBar" class="bar-fill"></div></div>
             <p id="thumbnailReason" class="reason"></p>
           </div>
           <div class="metric">
             <span>Caption quality</span>
-            <span id="captionScore">0</span>
+            <span id="captionScore" class="metric-score">0</span>
             <div class="bar"><div id="captionBar" class="bar-fill"></div></div>
             <p id="captionReason" class="reason"></p>
           </div>
           <div class="metric">
             <span>Trend alignment</span>
-            <span id="trendScore">0</span>
+            <span id="trendScore" class="metric-score">0</span>
             <div class="bar"><div id="trendBar" class="bar-fill"></div></div>
             <p id="trendReason" class="reason"></p>
           </div>
